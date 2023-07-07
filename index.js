@@ -33,52 +33,46 @@ const hijosRecursivos = async (uuid, token) => {
     
     children.list.entries.forEach(element => {
         if(!element.entry.isFile){
-            hijosRecursivos(element.entry.id,res)
+            hijosRecursivos(element.entry.id,token)
         }else{
             api.core.nodesApi.getNode(element.entry.id).then(async (file) => {
-                writeToLog(`Se obtiene el uuid: ${element.entry.id}`);
-                console.log("Se obtiene el uuid: ", element.entry.id)
 
-                //declara como archivo cada uuid de la lista
-                let url = process.env.API
-
-                let body = 
-                {
-                    "actionDefinitionId": "create-record",
-                    "targetId": `${uuid}`,
-                    "params": {}
-                }
-
-                let header = {
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                    "Authorization" : token
-                }
-
-                try {
-                    const resJson = await fetch(url, {
-                        method: 'POST',
-                        headers: header,
-                        body
-                    })
-                    console.log("resJson: ", resJson)
-                    writeToLog(`Declarado como archivo el documento con uuid: ${uuid}`)
-                    console.log(`Declarado como archivo el documento con uuid: ${uuid}`)
-                } catch (error) {
-                    console.log("error: ", error)
-                    return
-                }
-
+                //declara como archivo al doc por uuid
+                var myHeaders = new Headers();
+                myHeaders.append("Content-Type", "application/json");
+                myHeaders.append("Accept", "application/json");
+                myHeaders.append("Authorization", token);
+                myHeaders.append("Cookie", "alf_affinity_route=8b853172f90123fcfc08f15bdc8677b4034e07db");
                 
+                var raw = JSON.stringify({
+                  "actionDefinitionId": "create-record",
+                  "targetId": element.entry.id,
+                  "params": {}
+                });
+                
+                var requestOptions = {
+                  method: 'POST',
+                  headers: myHeaders,
+                  body: raw,
+                  redirect: 'follow'
+                };
+                
+                fetch(process.env.API, requestOptions)
+                  .then(response => response.text())
+                  .then(result => {
+                    console.clear();
+                    writeToLog(`Se declara como archivo el doc con uuid: ${element.entry.id}`);
+                    console.log("Se declara como archivo el doc con uuid: ", element.entry.id)
+                  })
+                  .catch(error => console.log('error', error));
 
                 return
+
             }, (error) => {
                 console.log("Error al obtener el uuid: " + error);
             });
-            
         }
     });
-
 }
 
 // Declara los archivos por uuid del padre
