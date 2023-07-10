@@ -35,7 +35,7 @@ const hijosRecursivos = async (uuid, token, categoria) => {
   children.list.entries.forEach(element => {
     //verifica si es archivo o carpeta
     if(!element.entry.isFile){ 
-        hijosRecursivos(element.entry.id,token)
+        hijosRecursivos(element.entry.id,token, categoria)
     }else{
       api.core.nodesApi.getNode(element.entry.id).then(async (file) => {
 
@@ -98,13 +98,12 @@ const hijosRecursivos = async (uuid, token, categoria) => {
 
         ///////////////////////////////////
         //SE MUEVE EL ARCHIVO A LA CATEGORIA
-
-        api.core.nodesApi.moveNode(element.entry.id,{
+        await api.core.nodesApi.moveNode(element.entry.id,{
           targetParentId: categoria
         }).then(() => {
           writeToLog(`Se mueve el archivo ${element.entry.id} a la categoria : ${categoria}`);
           console.log(`Se mueve el archivo ${element.entry.id} a la categoria : ${categoria}`)
-        }).catch(() =>{
+        }).catch((error) =>{
           console.log('error al mover', error)
           writeToLog(`error al movers: ${error} en uuid: ${element.entry.id}`)
         })
@@ -122,7 +121,6 @@ const hijosRecursivos = async (uuid, token, categoria) => {
 // Declara los archivos por uuid del padre
 app.post('/declararArchivo', async (req, res) => {
     const { uuid_path, token, categoria } = req.body;
-
     try {
         //obtiene la lista de uuid 
         //en base al uuid padre del path
