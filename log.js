@@ -11,8 +11,8 @@ const getLogFileName = () => {
 const writeToLog = (message) => {
     const logFileName = getLogFileName();
     const logFilePath = path.join(__dirname, logFileName);
-    //const logEntry = `[${new Date().toISOString()}] ${message}\n`;
-    const logEntry = `${message}\n`;
+    const logEntry = `[${new Date().toISOString()}] ${message}\n`;
+    //const logEntry = `${message}\n`;
     fs.appendFile(logFilePath, logEntry, err => {
         if (err) {
         console.error('Error al escribir en el archivo de log: ', err);
