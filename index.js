@@ -66,6 +66,34 @@ const hijosRecursivos = async (uuid, token) => {
                   })
                   .catch(error => console.log('error', error));
 
+
+
+                //se modifica las metadatos obligatorios
+                var raw = JSON.stringify({
+                    "properties": {
+                        "dod:originator": "Administrador",
+                        "dod:publicationDate": "2023-03-31T00:00:00.000+0000",
+                        "dod:originatingOrganization": "Administrador"
+                      }
+                  });
+                var requestOptions = {
+                method: 'PUT',
+                headers: myHeaders,
+                body: raw,
+                redirect: 'follow'
+                };
+
+                fetch(`https://testdms.tigo.com.co/alfresco/api/-default-/public/alfresco/versions/1/nodes${element.entry.id}`, requestOptions)
+                .then(result => {
+                  console.clear();
+                  writeToLog(`Se modifican los metadatos del doc con uuid: ${element.entry.id}`);
+                  console.log("Se modifican los metadatos del doc con uuid: ", element.entry.id)
+                })
+                .catch(error => console.log('error', error));
+
+
+
+                
                 return
 
             }, (error) => {
@@ -77,7 +105,7 @@ const hijosRecursivos = async (uuid, token) => {
 
 // Declara los archivos por uuid del padre
 app.post('/declararArchivo', async (req, res) => {
-    const { uuid_path, token } = req.body;
+    const { uuid_path, token, categoria } = req.body;
 
     try {
         //obtiene la lista de uuid 
