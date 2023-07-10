@@ -23,84 +23,100 @@ api.login(process.env.USER, process.env.PASS).then((data) => {
 
 //Busqueda de uuid por recursion
 var listaUUID = [];
-const hijosRecursivos = async (uuid, token) => {
+const hijosRecursivos = async (uuid, token, categoria) => {
     
-    const children = await api.nodes.getNodeChildren(uuid, { 
-        include: ['properties'],
-        maxItems: 100000,
-        skipCount: 0
-    }) 
-    
-    children.list.entries.forEach(element => {
-        if(!element.entry.isFile){
-            hijosRecursivos(element.entry.id,token)
-        }else{
-            api.core.nodesApi.getNode(element.entry.id).then(async (file) => {
+  const children = await api.nodes.getNodeChildren(uuid, { 
+      include: ['properties'],
+      maxItems: 100000,
+      skipCount: 0
+  }) 
+  
+  //recorre todos los hijos
+  children.list.entries.forEach(element => {
+    //verifica si es archivo o carpeta
+    if(!element.entry.isFile){ 
+        hijosRecursivos(element.entry.id,token)
+    }else{
+      api.core.nodesApi.getNode(element.entry.id).then(async (file) => {
 
-                //declara como archivo al doc por uuid
-                var myHeaders = new Headers();
-                myHeaders.append("Content-Type", "application/json");
-                myHeaders.append("Accept", "application/json");
-                myHeaders.append("Authorization", token);
-                myHeaders.append("Cookie", "alf_affinity_route=8b853172f90123fcfc08f15bdc8677b4034e07db");
-                
-                var raw = JSON.stringify({
-                  "actionDefinitionId": "create-record",
-                  "targetId": element.entry.id,
-                  "params": {}
-                });
-                
-                var requestOptions = {
-                  method: 'POST',
-                  headers: myHeaders,
-                  body: raw,
-                  redirect: 'follow'
-                };
-                
-                fetch(process.env.API, requestOptions)
-                  .then(response => response.text())
-                  .then(result => {
-                    console.clear();
-                    writeToLog(`Se declara como archivo el doc con uuid: ${element.entry.id}`);
-                    console.log("Se declara como archivo el doc con uuid: ", element.entry.id)
-                  })
-                  .catch(error => console.log('error', error));
+        ///////////////////////////////////////
+        //SE DECLARA COMO ARCHIVO
+        var myHeaders = new Headers();
+        myHeaders.append("Content-Type", "application/json");
+        myHeaders.append("Accept", "application/json");
+        myHeaders.append("Authorization", token);
+        myHeaders.append("Cookie", "alf_affinity_route=8b853172f90123fcfc08f15bdc8677b4034e07db");
+        
+        var raw = JSON.stringify({
+          "actionDefinitionId": "create-record",
+          "targetId": element.entry.id,
+          "params": {}
+        });
+        
+        var requestOptions = {
+          method: 'POST',
+          headers: myHeaders,
+          body: raw,
+          redirect: 'follow'
+        };
+        
+        await fetch(process.env.API, requestOptions)
+        .then(response => response.text())
+        .then(result => {
+          console.clear();
+          writeToLog(`Se declara como archivo el doc con uuid: ${element.entry.id}`);
+          console.log("Se declara como archivo el doc con uuid: ", element.entry.id)
+        })
+        .catch(error => console.log('error', error));
 
+        /////////////////////////////////////////////////////////
+        //SE AGREGA METADATA OBLIGATORIA
+        var raw = JSON.stringify({
+            "properties": {
+                "dod:originator": "Administrador",
+                "dod:publicationDate": "2023-03-31T00:00:00.000+0000",
+                "dod:originatingOrganization": "Administrador"
+              }
+          });
 
+        var requestOptions = {
+        method: 'PUT',
+        headers: myHeaders,
+        body: raw
+        };
 
-                //se modifica las metadatos obligatorios
-                var raw = JSON.stringify({
-                    "properties": {
-                        "dod:originator": "Administrador",
-                        "dod:publicationDate": "2023-03-31T00:00:00.000+0000",
-                        "dod:originatingOrganization": "Administrador"
-                      }
-                  });
-                var requestOptions = {
-                method: 'PUT',
-                headers: myHeaders,
-                body: raw,
-                redirect: 'follow'
-                };
+        await fetch(`https://testdms.tigo.com.co/alfresco/api/-default-/public/alfresco/versions/1/nodes/${element.entry.id}`, requestOptions)
+        .then(result => {
+          console.clear();
+          writeToLog(`Se modifican los metadatos del doc con uuid: ${element.entry.id}`);
+          console.log("Se modifican los metadatos del doc con uuid: ", element.entry.id)
+        })
+        .catch(error => {
+          console.log('error', error)
+          writeToLog(`error: ${error} en uuid: ${element.entry.id}`)
+        });
 
-                fetch(`https://testdms.tigo.com.co/alfresco/api/-default-/public/alfresco/versions/1/nodes${element.entry.id}`, requestOptions)
-                .then(result => {
-                  console.clear();
-                  writeToLog(`Se modifican los metadatos del doc con uuid: ${element.entry.id}`);
-                  console.log("Se modifican los metadatos del doc con uuid: ", element.entry.id)
-                })
-                .catch(error => console.log('error', error));
+        ///////////////////////////////////
+        //SE MUEVE EL ARCHIVO A LA CATEGORIA
 
+        api.core.nodesApi.moveNode(element.entry.id,{
+          targetParentId: categoria
+        }).then(() => {
+          writeToLog(`Se mueve el archivo ${element.entry.id} a la categoria : ${categoria}`);
+          console.log(`Se mueve el archivo ${element.entry.id} a la categoria : ${categoria}`)
+        }).catch(() =>{
+          console.log('error al mover', error)
+          writeToLog(`error al movers: ${error} en uuid: ${element.entry.id}`)
+        })
 
+        /////////////////////////////////////////////////////////
 
-                
-                return
-
-            }, (error) => {
-                console.log("Error al obtener el uuid: " + error);
-            });
-        }
-    });
+        return
+      }, (error) => {
+          console.log("Error al obtener el uuid: " + error);
+      });
+    }
+  });
 }
 
 // Declara los archivos por uuid del padre
@@ -110,7 +126,7 @@ app.post('/declararArchivo', async (req, res) => {
     try {
         //obtiene la lista de uuid 
         //en base al uuid padre del path
-        const res = await hijosRecursivos(uuid_path, token);
+        const res = await hijosRecursivos(uuid_path, token, categoria);
 
         res.status(201).json({
             status: 'ok',
