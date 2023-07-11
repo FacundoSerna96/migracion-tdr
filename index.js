@@ -100,7 +100,8 @@ const hijosRecursivos = async (uuid, token, categoria) => {
         //SE MUEVE EL ARCHIVO A LA CATEGORIA
         await api.core.nodesApi.moveNode(element.entry.id,{
           targetParentId: categoria
-        }).then(() => {
+        }).then((res) => {
+         // console.log("contenido del resultado de mover: ", res)
           writeToLog(`Se mueve el archivo ${element.entry.id} a la categoria : ${categoria}`);
           console.log(`Se mueve el archivo ${element.entry.id} a la categoria : ${categoria}`)
         }).catch((error) =>{
@@ -108,14 +109,62 @@ const hijosRecursivos = async (uuid, token, categoria) => {
           writeToLog(`error al movers: ${error} en uuid: ${element.entry.id}`)
         })
 
-        /////////////////////////////////////////////////////////
-
+        
         return
       }, (error) => {
           console.log("Error al obtener el uuid: " + error);
       });
     }
   });
+}
+
+const declararCompletoRecursivo = async (uuid, token) => {
+
+  const children = await api.nodes.getNodeChildren(uuid, { 
+    include: ['properties'],
+    maxItems: 100000,
+    skipCount: 0
+  })
+
+  children.list.entries.forEach(async element => {
+    if(!element.entry.isFile){ 
+      declararCompletoRecursivo(element.entry.id,token)
+    }else{
+      /////////////////////////////////////////////////////////
+      //DECLARAR EL ARCHIVO COMO COMPLETO
+      await fetch("https://testdms.tigo.com.co/share/proxy/alfresco/api/rma/actions/ExecutionQueue", {
+        "headers": {
+          "accept": "*/*",
+          "accept-language": "es-419,es;q=0.5",
+          "alfresco-csrftoken": "s2mjt4Zx3TCsq5lRzx4V1pxKL1ymYBmY4NHK45dsTk4=",
+          "content-type": "application/json",
+          "sec-ch-ua": "\"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"114\", \"Brave\";v=\"114\"",
+          "sec-ch-ua-mobile": "?0",
+          "sec-ch-ua-platform": "\"Windows\"",
+          "sec-fetch-dest": "empty",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-site": "same-origin",
+          "sec-gpc": "1",
+          "x-requested-with": "XMLHttpRequest",
+          "cookie": "org.alfresco.share.saml.loginRedirectPage=site%2Frm%2Fdocumentlibrary; JSESSIONID=91CD87D828F78A0AADD3095454F7B75F; alfLogin=1689078646; alfUsername3=admin; Alfresco-CSRFToken=s2mjt4Zx3TCsq5lRzx4V1pxKL1ymYBmY4NHK45dsTk4%3d; _alfTest=_alfTest; alf_aps=6b1c8c0c7d9ce110b603835d1df18083",
+          "Referer": "https://testdms.tigo.com.co/share/page/site/rm/documentlibrary",
+          "Referrer-Policy": "strict-origin-when-cross-origin"
+        },
+        "body": `{\"name\":\"declareRecord\",\"nodeRef\":\"workspace://SpacesStore/${element.entry.id}\"}`,
+        "method": "POST"
+      }).then((res) => {
+        console.log("res: ", res)
+        writeToLog(`Se completa el archivo ${element.entry.id}`);
+        console.log(`Se completa el archivo  ${element.entry.id}`)
+      }).catch((error) => {
+        console.log('error al completar el archivo', error)
+        writeToLog(`error al completar el archivo: ${error} en uuid: ${element.entry.id}`)
+      })
+      /////////////////////////////////////////////////////////
+
+      return;
+    }
+  })
 }
 
 // Declara los archivos por uuid del padre
@@ -137,7 +186,29 @@ app.post('/declararArchivo', async (req, res) => {
             "error:" : error
         })
     }
-  });
+});
+
+app.post('/declararCompleto', async (req,res) =>{
+
+  //obtiene del body el uuid de la carpeta padre
+  //luego declara como completo todos los archivos hijos
+  const {uuid_path, token} = req.body;
+
+  try {
+    await declararCompletoRecursivo(uuid_path, token)
+    return res.status(200).json({
+      msg: 'ok'
+    })
+  } catch (error) {
+    console.log(error)
+    return res.status(400).json({
+      msg: 'error',
+      error
+    })
+  }
+
+})
+
 
 
 // Ruta de ejemplo
