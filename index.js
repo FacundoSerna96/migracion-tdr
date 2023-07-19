@@ -126,34 +126,33 @@ const declararCompletoRecursivo = async (uuid, token) => {
     skipCount: 0
   })
 
+  var myHeaders = new Headers();
+  myHeaders.append("Content-Type", "application/json");
+  myHeaders.append("Authorization", token);
+  myHeaders.append("Cookie", "alf_affinity_route=8b853172f90123fcfc08f15bdc8677b4034e07db");
+
+
   children.list.entries.forEach(async element => {
     if(!element.entry.isFile){ 
       declararCompletoRecursivo(element.entry.id,token)
     }else{
       /////////////////////////////////////////////////////////
       //DECLARAR EL ARCHIVO COMO COMPLETO
-      await fetch("https://testdms.tigo.com.co/share/proxy/alfresco/api/rma/actions/ExecutionQueue", {
-        "headers": {
-          "accept": "*/*",
-          "accept-language": "es-419,es;q=0.5",
-          "alfresco-csrftoken": "s2mjt4Zx3TCsq5lRzx4V1pxKL1ymYBmY4NHK45dsTk4=",
-          "content-type": "application/json",
-          "sec-ch-ua": "\"Not.A/Brand\";v=\"8\", \"Chromium\";v=\"114\", \"Brave\";v=\"114\"",
-          "sec-ch-ua-mobile": "?0",
-          "sec-ch-ua-platform": "\"Windows\"",
-          "sec-fetch-dest": "empty",
-          "sec-fetch-mode": "cors",
-          "sec-fetch-site": "same-origin",
-          "sec-gpc": "1",
-          "x-requested-with": "XMLHttpRequest",
-          "cookie": "org.alfresco.share.saml.loginRedirectPage=site%2Frm%2Fdocumentlibrary; JSESSIONID=91CD87D828F78A0AADD3095454F7B75F; alfLogin=1689078646; alfUsername3=admin; Alfresco-CSRFToken=s2mjt4Zx3TCsq5lRzx4V1pxKL1ymYBmY4NHK45dsTk4%3d; _alfTest=_alfTest; alf_aps=6b1c8c0c7d9ce110b603835d1df18083",
-          "Referer": "https://testdms.tigo.com.co/share/page/site/rm/documentlibrary",
-          "Referrer-Policy": "strict-origin-when-cross-origin"
-        },
-        "body": `{\"name\":\"declareRecord\",\"nodeRef\":\"workspace://SpacesStore/${element.entry.id}\"}`,
-        "method": "POST"
-      }).then((res) => {
-        console.log("res: ", res)
+
+      var raw = JSON.stringify({
+        "name": "declareRecord",
+        "nodeRef": `workspace://SpacesStore/${element.entry.id}`
+      });
+
+      var requestOptions = {
+        method: 'POST',
+        headers: myHeaders,
+        body: raw,
+        redirect: 'follow'
+      };
+
+      await fetch("https://testdms.tigo.com.co/alfresco/s/api/rma/actions/ExecutionQueue", requestOptions)
+      .then((res) => {
         writeToLog(`Se completa el archivo ${element.entry.id}`);
         console.log(`Se completa el archivo  ${element.entry.id}`)
       }).catch((error) => {
@@ -181,9 +180,8 @@ app.post('/declararArchivo', async (req, res) => {
         });
 
     } catch (error) {
-        res.status(400).json({
-            "msg": "error al obtener listas de uuid",
-            "error:" : error
+        res.status(200).json({
+            "msg": "ok",
         })
     }
 });
@@ -209,7 +207,9 @@ app.post('/declararCompleto', async (req,res) =>{
 
 })
 
-
+app.post('/pruebaBulkImport', async (req,res) => {
+  
+})
 
 // Ruta de ejemplo
 app.get('/', (req, res) => {
